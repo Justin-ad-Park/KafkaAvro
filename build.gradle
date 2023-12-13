@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id "com.github.davidmc24.gradle.plugin.avro" version "1.9.1"
 }
 
 group 'com.justin.'
@@ -23,6 +24,15 @@ dependencies {
 
     implementation 'io.confluent:kafka-avro-serializer:7.5.1'
     implementation 'org.apache.kafka:kafka_2.13:3.6.0'
+}
+
+generateAvroJava {
+    source("${projectDir}/src/main/resources/avro")
+    outputDir = file("src/main/java")
+}
+
+avro {
+    createSetters = true
 }
 
 test {
