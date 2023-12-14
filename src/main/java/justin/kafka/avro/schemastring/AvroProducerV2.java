@@ -1,4 +1,4 @@
-package justin.kafkaavro.schemastring;
+package justin.kafka.avro.schemastring;
 
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import org.apache.avro.Schema;
@@ -13,7 +13,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 
-public class AvroSchemaProducer {
+public class AvroProducerV2 {
     private final static String TOPIC_NAME = "test";
     private final static String BOOTSTRAP_SERVERS = "localhost:9092";
 
@@ -25,6 +25,9 @@ public class AvroSchemaProducer {
         configs.setProperty("value.serializer", KafkaAvroSerializer.class.getName());
         configs.setProperty("schema.registry.url", "http://localhost:8081");
 
+        KafkaProducer<String, GenericRecord> producer = new KafkaProducer<>(configs);
+
+// 버전1 스키마 전송
         String schema = "{"
                 + "\"namespace\": \"myrecord\","
                 + " \"name\": \"orders\","
@@ -39,15 +42,39 @@ public class AvroSchemaProducer {
         Schema.Parser parser = new Schema.Parser();
         Schema avroSchema1 = parser.parse(schema);
 
-        // generate avro generic record
         GenericRecord avroRecord = new GenericData.Record(avroSchema1);
         avroRecord.put("orderTime", System.nanoTime());
         avroRecord.put("orderId", new Random().nextLong());
         avroRecord.put("itemId", UUID.randomUUID().toString());
 
-        KafkaProducer<String, GenericRecord> producer = new KafkaProducer<>(configs);
         ProducerRecord<String, GenericRecord> record = new ProducerRecord<>(TOPIC_NAME, avroRecord);
         producer.send(record);
+
+
+// 버전2 스키마 전송
+        String schema2 = "{"
+                + "\"namespace\": \"myrecord\","
+                + " \"name\": \"orders\","
+                + " \"type\": \"record\","
+                + " \"fields\": ["
+                + "     {\"name\": \"orderTime\", \"type\": \"long\"},"
+                + "     {\"name\": \"orderId\",  \"type\": \"long\"},"
+                + "     {\"name\": \"itemNo\", \"type\": \"int\"}"
+                + " ]"
+                + "}";
+
+        Schema.Parser parser2 = new Schema.Parser();
+        Schema avroSchema2 = parser2.parse(schema2);
+
+        GenericRecord avroRecord2 = new GenericData.Record(avroSchema2);
+        avroRecord2.put("orderTime", System.nanoTime());
+        avroRecord2.put("orderId", new Random().nextLong());
+        avroRecord2.put("itemNo", 123);
+
+        ProducerRecord<String, GenericRecord> record2 = new ProducerRecord<>(TOPIC_NAME, avroRecord2);
+        producer.send(record2);
+
+
         producer.flush();
         producer.close();
     }

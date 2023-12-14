@@ -1,4 +1,4 @@
-package justin.kafkaavro;
+package justin.kafka.avro.schemastring;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;

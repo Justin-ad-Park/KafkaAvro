@@ -1,4 +1,4 @@
-package justin.kafkaavro.generatedobject;
+package justin.kafka.avro.generatedobject;
 
 import example.avro.User;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;

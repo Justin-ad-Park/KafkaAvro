@@ -1,4 +1,4 @@
-package justin.kafkaavro;
+package justin.kafka.avro.schemastring;
 
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import org.apache.avro.generic.GenericRecord;
