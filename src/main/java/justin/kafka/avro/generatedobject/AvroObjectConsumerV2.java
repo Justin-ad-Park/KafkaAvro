@@ -14,7 +14,7 @@ public class AvroObjectConsumerV2 {
     private final static Logger logger = LoggerFactory.getLogger(AvroDeserializerConsumer.class);
     private final static String TOPIC_NAME = "test_users";
     private final static String BOOTSTRAP_SERVERS = "localhost:9092";
-    private final static String GROUP_ID = "test-users-group-3";
+    private final static String GROUP_ID = "test-users-group";
 
     public static void main(String[] args) {
         Properties props = new Properties();
