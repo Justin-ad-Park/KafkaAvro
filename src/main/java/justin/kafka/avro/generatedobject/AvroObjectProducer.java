@@ -13,7 +13,6 @@ import java.util.Random;
 /**
  * $ kafka-topics --bootstrap-server localhost:9092 --topic test_users -create
  */
-
 public class AvroObjectProducer {
     private final static String TOPIC_NAME = "test_users";
     private final static String BOOTSTRAP_SERVERS = "localhost:9092";

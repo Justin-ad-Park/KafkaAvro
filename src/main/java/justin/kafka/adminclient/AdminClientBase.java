@@ -1,7 +1,8 @@
 package justin.kafka.adminclient;
 
 import org.apache.kafka.clients.admin.*;
-import scala.Option;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 
 import java.time.Duration;
 import java.util.*;
@@ -50,6 +51,108 @@ public class AdminClientBase {
         final ArrayList<String> TOPIC_LIST = new ArrayList<>(Arrays.asList(topicName));
 
         return admin.deleteTopics(TOPIC_LIST);
+    }
+
+    /**
+     * 컨슈머 그룹의 각 파티션별 오프셋 정보
+     * @param consumerGroup
+     * @return
+     */
+    public Map<TopicPartition, OffsetAndMetadata> getPartitionOffsetMetadataByConsumerGroup(String consumerGroup) {
+        // 컨슈머 그룹의 모든 오프셋(파티션별 오프셋) 목록을 가져온다.
+        Map<TopicPartition, OffsetAndMetadata> offsets = null;
+        try {
+            offsets = admin.listConsumerGroupOffsets(consumerGroup)
+                    .partitionsToOffsetAndMetadata().get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return offsets;
+    }
+
+
+    /**
+     * 컨슈머 그룹의 각 파티션별 특정 오프셋 스펙 정보(Earliest, Latest, MaxTimeStamp)
+     * @param consumerGroup
+     * @param offsetSpec
+     * @return
+     */
+    public Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> getTopicPartitionListByOffsetSpec(String consumerGroup, OffsetSpec offsetSpec) {
+        Map<TopicPartition, OffsetAndMetadata> offsets = getPartitionOffsetMetadataByConsumerGroup(consumerGroup);
+
+        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> OffsetsResult = getTopicPartitionListByOffsetSpec(offsets, offsetSpec);
+        return OffsetsResult;
+    }
+
+    public Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> getTopicPartitionListByOffsetSpec(Map<TopicPartition, OffsetAndMetadata> offsets, OffsetSpecEnum offsetSpecEnum) {
+        return getTopicPartitionListByOffsetSpec(offsets, offsetSpecEnum.getOffsetSpec());
+    }
+
+    /**
+     * 컨슈머 그룹의 각 파티션별 특정 오프셋 스펙 정보(Earliest, Latest, MaxTimeStamp)
+     * @param offsets
+     * @param offsetSpec
+     * @return
+     */
+    private Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> getTopicPartitionListByOffsetSpec(Map<TopicPartition, OffsetAndMetadata> offsets, OffsetSpec offsetSpec) {
+        Map<TopicPartition, OffsetSpec> requestOffsetSpecs = new HashMap<>();
+
+        // 각 오프셋에 커밋값을 요청하기 위한 Map을 만든다.
+        for(TopicPartition tp: offsets.keySet()) {
+            requestOffsetSpecs.put(tp, offsetSpec);
+        }
+
+        // 컨슈머 그룹의 모든 오프셋(파티션별 오프셋) 목록을 가져온다.
+        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> OffsetsResult = null;
+        try {
+            OffsetsResult = admin.listOffsets(requestOffsetSpecs).all().get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return OffsetsResult;
+    }
+
+    /**
+     * 컨슈머 그룹의 오프셋을 변경한다.
+     * @param consumerGroup
+     * @param offsetSpecEnum (Earliest, Latest, MaxTimeStamp)
+     */
+    public void alterConsumerGroupOffsets(String consumerGroup, OffsetSpecEnum offsetSpecEnum) {
+        alterConsumerGroupOffsets(consumerGroup, offsetSpecEnum.getOffsetSpec());
+    }
+
+
+    /**
+     * 컨슈머 그룹의 오프셋을 변경한다.
+     * @param consumerGroup
+     * @param offsetSpec
+     *  offsetSpec을 직접 지정
+     *  특히, TimestampSpec로 세밀하게 오프셋을 변경할 때 사용
+     *  예)
+     *  alterConsumerGroupOffsets("comsumerGroupName",
+     */
+    public void alterConsumerGroupOffsets(String consumerGroup, OffsetSpec offsetSpec) {
+        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> OffsetsResult = getTopicPartitionListByOffsetSpec(consumerGroup, offsetSpec);
+
+        Map<TopicPartition, OffsetAndMetadata> resetOffsets = new HashMap<>();
+
+        // 각 오프셋에 커밋값을 요청하기 위한 Map을 만든다.
+        for(Map.Entry<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> e: OffsetsResult.entrySet()) {
+            System.out.printf("Key: %s, offset: %s, timestamp: %d \n", e.getKey(), e.getValue().offset(), e.getValue().timestamp());
+            resetOffsets.put(e.getKey(), new OffsetAndMetadata(e.getValue().offset()) );
+        }
+
+        try {
+            admin.alterConsumerGroupOffsets(consumerGroup, resetOffsets).all().get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
     }
 
 }

@@ -7,6 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -30,7 +33,7 @@ public class AvroObjectConsumerV2 {
 
         consumer.subscribe(Arrays.asList(TOPIC_NAME));
 
-        while (true) {
+        for (int i = 0; i < 10; i++) {
             ConsumerRecords<String, User> records = consumer.poll(Duration.ofSeconds(1));
             for (ConsumerRecord<String, User> record : records) {
                 User user = record.value();
@@ -39,5 +42,10 @@ public class AvroObjectConsumerV2 {
 
             }
         }
+
+        System.out.println("=== Consumer group is closed. ===");
+        consumer.close(Duration.ofSeconds(3L));
+
     }
+
 }

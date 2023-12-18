@@ -5,11 +5,13 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.internals.Topic;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -109,32 +111,22 @@ class AdminClientBaseTest {
     }
 
     @Test
-    void getOffset() throws ExecutionException, InterruptedException {
+    void printLatestOfOffsets() throws ExecutionException, InterruptedException {
         String consumerGroup = "test-users-group";
 
-        // 컨슈머 그룹의 모든 오프셋(파티션별 오프셋) 목록을 가져온다.
-        Map<TopicPartition, OffsetAndMetadata> offsets = adminClient.admin.listConsumerGroupOffsets(consumerGroup)
-                .partitionsToOffsetAndMetadata().get();
 
-        Map<TopicPartition, OffsetSpec> requestLatestOffsets = new HashMap<>();
+        Map<TopicPartition, OffsetAndMetadata> offsets = adminClient.getPartitionOffsetMetadataByConsumerGroup(consumerGroup);
 
-        // 각 오프셋에 커밋값을 요청하기 위한 Map을 만든다.
-        for(TopicPartition tp: offsets.keySet()) {
-            requestLatestOffsets.put(tp, OffsetSpec.latest());
-        }
-
-        //위에서 만든 맵으로 커밋 오프셋 값을 요청한다.
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
-                adminClient.admin.listOffsets(requestLatestOffsets).all().get();
+        var lastestOffsets = adminClient.getTopicPartitionListByOffsetSpec(offsets, OffsetSpecEnum.Latest);
 
         for(Map.Entry<TopicPartition, OffsetAndMetadata> e: offsets.entrySet()) {
             String topic = e.getKey().topic();
             int partition = e.getKey().partition();
             long committedOffset = e.getValue().offset();
-            long latestoffset = latestOffsets.get(e.getKey()).offset();
+            long latestOffset = lastestOffsets.get(e.getKey()).offset();
 
-            System.out.printf("Consumer Group: %s,\t committed offset: %d, \t, topic: %s, \t latestOffset: %d,\t behind records: %d\n"
-                    , consumerGroup, committedOffset, topic, latestoffset, (latestoffset - committedOffset));
+            System.out.printf("Consumer Group: %s,\t partiton: %d, \t committed offset: %d, \t topic: %s, \t latestOffset: %d,\t behind records: %d\n"
+                    , consumerGroup, partition, committedOffset, topic, latestOffset, (latestOffset - committedOffset));
         }
 
     }
@@ -146,48 +138,50 @@ class AdminClientBaseTest {
     void resetConsumerGroupOffsetsToEarliest() {
         String consumerGroup = "test-users-group";
 
-        // 컨슈머 그룹의 모든 오프셋(파티션별 오프셋) 목록을 가져온다.
-        Map<TopicPartition, OffsetAndMetadata> offsets = null;
-        try {
-            offsets = adminClient.admin.listConsumerGroupOffsets(consumerGroup)
-                    .partitionsToOffsetAndMetadata().get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
+        adminClient.alterConsumerGroupOffsets(consumerGroup, OffsetSpecEnum.Earliest);
+    }
 
-        Map<TopicPartition, OffsetSpec> requestEarliestOffsets = new HashMap<>();
+    /**
+     * 컨슈머 그룹의 오프셋을 5분 전으로 변경
+     */
+    @Test
+    void resetConsumerGroupOffsetsByTimestamp() {
+        String consumerGroup = "test-users-group";
 
-        // 각 오프셋에 커밋값을 요청하기 위한 Map을 만든다.
-        for(TopicPartition tp: offsets.keySet()) {
-            requestEarliestOffsets.put(tp, OffsetSpec.earliest());
-        }
+        /* 특정 일시 설정 (예: 2023년 12월 18일 오후 3시 45분 30초)
+        LocalDateTime dateTime = LocalDateTime.of(2023, 12, 18, 15, 45, 30);
+        */
 
-        // 컨슈머 그룹의 모든 오프셋(파티션별 오프셋) 목록을 가져온다.
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> earliestOffsets = null;
-        try {
-            earliestOffsets = adminClient.admin.listOffsets(requestEarliestOffsets).all().get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
+        Long currTimestamp = System.currentTimeMillis();
+        Long targetTimestamp = currTimestamp - (60 * 1000 * 200);    //60 * 1000 = 1분 * xxx = xxx분
 
-        Map<TopicPartition, OffsetAndMetadata> resetOffsets = new HashMap<>();
+        System.out.println("Target Timestamp : " + targetTimestamp);
 
-        // 각 오프셋에 커밋값을 요청하기 위한 Map을 만든다.
-        for(Map.Entry<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> e: earliestOffsets.entrySet()) {
-            resetOffsets.put(e.getKey(), new OffsetAndMetadata(e.getValue().offset()) );
-        }
 
-        try {
-            adminClient.admin.alterConsumerGroupOffsets(consumerGroup, resetOffsets).all().get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
+        adminClient.alterConsumerGroupOffsets(consumerGroup, OffsetSpec.forTimestamp(targetTimestamp));
+    }
+
+    /**
+     * 컨슈머 그룹의 오프셋을 특정한 시간으로 지정
+     */
+    @Test
+    void resetConsumerGroupOffsetsBySpecificTimestamp() {
+        String consumerGroup = "test-users-group";
+
+        Long targetTimestamp = getSpecifiedTimestamp(2023,12,18,11,30,0);
+
+        adminClient.alterConsumerGroupOffsets(consumerGroup, OffsetSpec.forTimestamp(targetTimestamp));
+    }
+
+    private long getSpecifiedTimestamp(int year, int month, int dayOfMonth, int hour, int minute, int second) {
+        LocalDateTime dateTime = LocalDateTime.of(year, month, dayOfMonth, hour, minute, second);
+        // 타임존 설정 (예: 시스템 기본 타임존)
+        ZoneId zoneId = ZoneId.systemDefault();
+        // ZonedDateTime을 사용하여 타임존을 적용
+        ZonedDateTime zonedDateTime = ZonedDateTime.of(dateTime, zoneId);
+
+        // 타임스탬프로 변환 (밀리초 단위)
+        return zonedDateTime.toInstant().toEpochMilli();
     }
 
 }
