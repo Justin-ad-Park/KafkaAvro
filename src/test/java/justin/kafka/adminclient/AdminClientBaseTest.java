@@ -6,7 +6,6 @@ import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.ElectionNotNeededException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -25,6 +24,7 @@ class AdminClientBaseTest {
         adminClient = new AdminClientBase();
     }
 
+    /// 토픽 리스트 조회 ////////////////////////////////
     @Test
     void listTopics() throws ExecutionException, InterruptedException {
         adminClient.listTopics().names().get().forEach(System.out::println);
@@ -34,6 +34,7 @@ class AdminClientBaseTest {
         Assertions.assertNotNull(topicName.get());
     }
 
+    /// 토픽 존재 확인 /////////////////////////////////
     @Test
     void existTopic() throws ExecutionException, InterruptedException {
         boolean existTestTopic = adminClient.existTopic(TOPIC_NAME);
@@ -45,6 +46,7 @@ class AdminClientBaseTest {
 
     }
 
+    /// 토픽 설명 확인 /////////////////////////////////
     @Test
     void DescribeTopic() throws ExecutionException, InterruptedException {
         KafkaFuture<TopicDescription> topicDesc = getTopicDescription(TOPIC_NAME);
@@ -72,6 +74,7 @@ class AdminClientBaseTest {
     void close() {
     }
 
+    /// 토픽 생성 /////////////////////////////////
     @Test
     @Order(1)
     void createTopic() throws ExecutionException, InterruptedException {
@@ -90,6 +93,7 @@ class AdminClientBaseTest {
 
     }
 
+    /// 토픽 삭제 /////////////////////////////////
     @Test
     @Order(2)
     void deleteTopic() throws ExecutionException, InterruptedException {
@@ -103,11 +107,14 @@ class AdminClientBaseTest {
 
     }
 
+    /// 컨슈머 그룹 확인 - 단순 리스트업 수준 /////////////////////////////////
     @Test
     void listConsumerGroups() throws ExecutionException, InterruptedException {
         adminClient.admin.listConsumerGroups().valid().get().forEach(System.out::println);
     }
 
+
+    /// 컨슈머 그룹 확인 - 상세 내역(Describe) /////////////////////////////////
     @Test
     void describeConsumerGroups() throws ExecutionException, InterruptedException {
         ConsumerGroupDescription groupDescription = adminClient.admin.describeConsumerGroups(List.of("test-group", "test-users-group"))
@@ -116,6 +123,7 @@ class AdminClientBaseTest {
         System.out.println(groupDescription);
     }
 
+    /// 컨슈머 그룹의 오프셋 정보 확인(파티션별 커밋오프셋, 토픽, 최종 오프셋, 오프셋 차이) /////////////////////////////////
     @Test
     void printLatestOfOffsets() throws ExecutionException, InterruptedException {
         String consumerGroup = "test-users-group";
@@ -137,8 +145,9 @@ class AdminClientBaseTest {
 
     }
 
+
     /**
-     * 컨슈머 그룹의 오프셋을 earliest로 변경하는 API 호출
+     * 컨슈머 그룹의 오프셋을 earliest(가장 빠른=가장 오래된)로 변경하는 API 호출
      */
     @Test
     void resetConsumerGroupOffsetsToEarliest() {
@@ -148,7 +157,7 @@ class AdminClientBaseTest {
     }
 
     /**
-     * 컨슈머 그룹의 오프셋을 5분 전으로 변경
+     * 컨슈머 그룹의 오프셋을 xxx분 전으로 변경
      */
     @Test
     void resetConsumerGroupOffsetsByTimestamp() {
@@ -163,6 +172,9 @@ class AdminClientBaseTest {
         adminClient.alterConsumerGroupOffsets(consumerGroup, OffsetSpec.forTimestamp(targetTimestamp));
     }
 
+    /**
+     * 컨슈머 그룹의 오프셋을 특정한 타임 스탬프로 변경
+     */
     @Test
     void resetConsumerGroupOffsetsByTimestamp2() {
         String consumerGroup = "test-users-group";
@@ -176,7 +188,7 @@ class AdminClientBaseTest {
 
 
     /**
-     * 컨슈머 그룹의 오프셋을 특정한 시간으로 지정
+     * 컨슈머 그룹의 오프셋을 특정한 시간(년월일시분초(나노초))으로 지정
      */
     @Test
     void resetConsumerGroupOffsetsBySpecificTimestamp() {
@@ -187,6 +199,7 @@ class AdminClientBaseTest {
         adminClient.alterConsumerGroupOffsets(consumerGroup, OffsetSpec.forTimestamp(targetTimestamp));
     }
 
+    /// 년월일시분초를 타임스탭프로 변경
     private long getSpecifiedTimestamp(int year, int month, int dayOfMonth, int hour, int minute, int second) {
         LocalDateTime dateTime = LocalDateTime.of(year, month, dayOfMonth, hour, minute, second);
         // 타임존 설정 (예: 시스템 기본 타임존)
@@ -198,6 +211,7 @@ class AdminClientBaseTest {
         return zonedDateTime.toInstant().toEpochMilli();
     }
 
+    /// 클러스터 정보 조회 ///////////////////////////////////////////
     @Test
     void describeCluster() throws ExecutionException, InterruptedException {
         DescribeClusterResult descCluster = adminClient.admin.describeCluster();
@@ -208,6 +222,8 @@ class AdminClientBaseTest {
         descCluster.nodes().get().forEach(node -> System.out.println(node));
     }
 
+
+    ///파티션 추가(줄이는 것 불가능. 입력값은 최종 파티션 수) /////////////////////
     @Test
     void increasePartition() throws ExecutionException, InterruptedException {
         String topicName = "test_users";
@@ -227,6 +243,18 @@ class AdminClientBaseTest {
 
     }
 
+    /// 레코드 삭제(타임스탭프) -  이전값(Before) 삭제, 타임스탭프가 동일한 레코드는 삭제하지 않음 /////////////////////
+
+    /**
+     * 레코드 삭제(타임스탭프) -  이전값(Before) 삭제, 타임스탭프가 동일한 레코드는 삭제하지 않음
+     * *** 주의 **************************************************************************
+     *   컨슈머 그룹과 무관하게 레코드 자체가 삭제되기 때문에 다른 컨슈머 그룹에서도 더 이상 해당 레코드를 조회 못함
+     *   테스트 레코드를 삭제하거나, 브로커 설정에 의해 아직 삭제되지 않은 레코드를 강제로 삭제해야 하는 경우에만 사용해야 함
+     * **********************************************************************************
+     *
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
     @Test
     void deleteRecordsByBeforeOffset() throws ExecutionException, InterruptedException {
         String consumerGroup = "test-users-group";
@@ -237,6 +265,7 @@ class AdminClientBaseTest {
 
     }
 
+    /// 레코드 삭제(년월일시분초) - 이전값(Before) 삭제, 타임스탭프가 동일한 레코드는 삭제하지 않음 /////////////////////
     @Test
     void deleteRecordsByTimestamp() throws ExecutionException, InterruptedException {
         String consumerGroup = "test-users-group";
@@ -267,6 +296,9 @@ class AdminClientBaseTest {
         }
     }
 
+    /**
+     * 전체 리더 재선출
+     */
     @Test
     void electAllLeaders() {
         Set<TopicPartition> electableTopics = new HashSet<>();  //아무값도 채우지 않으면 전체 토픽, 전체 파티션에 대해 재선출
