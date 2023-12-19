@@ -33,18 +33,18 @@ public class AvroObjectConsumerV2 {
 
         consumer.subscribe(Arrays.asList(TOPIC_NAME));
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 3; i++) {
             ConsumerRecords<String, User> records = consumer.poll(Duration.ofSeconds(1));
             for (ConsumerRecord<String, User> record : records) {
                 User user = record.value();
                 System.out.println("====");
-                System.out.printf("offset = %d, key = %s, name = %s, color=%s, number=%d \n", record.offset(), record.key(), user.getName(), user.getFavoriteColor(), user.getFavoriteNumber());
+                System.out.printf("Partition : %d, offset = %d, key = %s, Timestamp: %d, name = %s, color=%s, number=%d \n", record.partition(), record.offset(), record.key(), record.timestamp(), user.getName(), user.getFavoriteColor(), user.getFavoriteNumber());
 
             }
         }
 
         System.out.println("=== Consumer group is closed. ===");
-        consumer.close(Duration.ofSeconds(3L));
+        consumer.close();
 
     }
 

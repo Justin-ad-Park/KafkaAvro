@@ -3,6 +3,7 @@ package justin.kafka.adminclient;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.checkerframework.checker.units.qual.K;
 
 import java.time.Duration;
 import java.util.*;
@@ -72,6 +73,11 @@ public class AdminClientBase {
         return offsets;
     }
 
+
+
+    public Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> getTopicPartitionListByOffsetSpec(String consumerGroup, OffsetSpecEnum offsetSpecEnum) {
+        return getTopicPartitionListByOffsetSpec(consumerGroup, offsetSpecEnum.getOffsetSpec());
+    }
 
     /**
      * 컨슈머 그룹의 각 파티션별 특정 오프셋 스펙 정보(Earliest, Latest, MaxTimeStamp)
@@ -153,6 +159,29 @@ public class AdminClientBase {
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
+    }
+
+    public void increasePartition(String topicName, int partitionNumber) throws ExecutionException, InterruptedException {
+        Map<String, NewPartitions> newPartitions = Map.of(topicName, NewPartitions.increaseTo(partitionNumber));
+
+        admin.createPartitions(newPartitions).all().get();
+
+    }
+
+    public void deleteRecordsByBeforeOffset( String consumerGroup, OffsetSpecEnum offsetSpecEnum) throws ExecutionException, InterruptedException {
+        deleteRecordsByBeforeOffset(consumerGroup, offsetSpecEnum.getOffsetSpec());
+    }
+
+    public void deleteRecordsByBeforeOffset( String consumerGroup, OffsetSpec offsetSpec ) throws ExecutionException, InterruptedException {
+        var olderOffsets = getTopicPartitionListByOffsetSpec(consumerGroup, offsetSpec);
+
+        Map<TopicPartition, RecordsToDelete> recordsToDelete = new HashMap<>();
+
+        for(Map.Entry<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> e: olderOffsets.entrySet()) {
+            recordsToDelete.put(e.getKey(), RecordsToDelete.beforeOffset(e.getValue().offset()));
+        }
+
+        admin.deleteRecords(recordsToDelete).all().get();
     }
 
 }
