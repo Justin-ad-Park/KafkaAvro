@@ -24,9 +24,8 @@ public class MockAdminClientTest {
 
         admin = spy(adminClient);
 
-        AlterConfigsResult emptyResult = mock(AlterConfigsResult.class);
-        doReturn(KafkaFuture.completedFuture(null)).when(emptyResult).all();
-        // doReturn(emptyResult).when(admin.incrementalAlterConfigs(any()));
+//        AlterConfigsResult emptyResult = mock(AlterConfigsResult.class);
+//        doReturn(KafkaFuture.completedFuture(null)).when(emptyResult).all();
     }
 
     @Test
