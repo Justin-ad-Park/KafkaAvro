@@ -24,18 +24,41 @@ class AdminClientBaseTest {
         adminClient = new AdminClientBase();
     }
 
+
+    /// 토픽 생성 /////////////////////////////////
+    @Test
+    @Order(1)
+    void createTopic() throws ExecutionException, InterruptedException {
+
+        if(adminClient.existTopic(TOPIC_NAME)) {
+            System.out.println("Topic is already exist.");
+
+            adminClient.deleteTopic(TOPIC_NAME);
+        }
+
+        CreateTopicsResult topicResult = adminClient.createTopic(TOPIC_NAME, 1, (short) 1);
+
+        Uuid topicId = topicResult.topicId(TOPIC_NAME).get();
+
+        Assertions.assertNotNull(topicId);
+
+    }
+
     /// 토픽 리스트 조회 ////////////////////////////////
     @Test
+    @Order(2)
     void listTopics() throws ExecutionException, InterruptedException {
         adminClient.listTopics().names().get().forEach(System.out::println);
 
         Optional<String> topicName = adminClient.listTopics().names().get().stream().findAny();
 
-        Assertions.assertNotNull(topicName.get());
+        Assertions.assertNull(topicName.get());
     }
+
 
     /// 토픽 존재 확인 /////////////////////////////////
     @Test
+    @Order(3)
     void existTopic() throws ExecutionException, InterruptedException {
         boolean existTestTopic = adminClient.existTopic(TOPIC_NAME);
 
@@ -48,6 +71,7 @@ class AdminClientBaseTest {
 
     /// 토픽 설명 확인 /////////////////////////////////
     @Test
+    @Order(4)
     void DescribeTopic() throws ExecutionException, InterruptedException {
         KafkaFuture<TopicDescription> topicDesc = getTopicDescription(TOPIC_NAME);
 
@@ -74,28 +98,11 @@ class AdminClientBaseTest {
     void close() {
     }
 
-    /// 토픽 생성 /////////////////////////////////
-    @Test
-    @Order(1)
-    void createTopic() throws ExecutionException, InterruptedException {
 
-        if(adminClient.existTopic(TOPIC_NAME)) {
-            System.out.println("Topic is already exist.");
-
-            adminClient.deleteTopic(TOPIC_NAME);
-        }
-
-        CreateTopicsResult topicResult = adminClient.createTopic(TOPIC_NAME, 1, (short) 1);
-
-        Uuid topicId = topicResult.topicId(TOPIC_NAME).get();
-
-        Assertions.assertNotNull(topicId);
-
-    }
 
     /// 토픽 삭제 /////////////////////////////////
     @Test
-    @Order(2)
+    @Order(5)
     void deleteTopic() throws ExecutionException, InterruptedException {
 
         if( !adminClient.existTopic(TOPIC_NAME) )
@@ -131,7 +138,7 @@ class AdminClientBaseTest {
 
         Map<TopicPartition, OffsetAndMetadata> offsets = adminClient.getPartitionOffsetMetadataByConsumerGroup(consumerGroup);
 
-        var lastestOffsets = adminClient.getTopicPartitionListByOffsetSpec(offsets, OffsetSpecEnum.Latest);
+        var lastestOffsets = adminClient.getTopicPartitionListByOffsetSpec(consumerGroup, OffsetSpecEnum.Latest);
 
         for(Map.Entry<TopicPartition, OffsetAndMetadata> e: offsets.entrySet()) {
             String topic = e.getKey().topic();
@@ -179,8 +186,7 @@ class AdminClientBaseTest {
     void resetConsumerGroupOffsetsByTimestamp2() {
         String consumerGroup = "test-users-group";
 
-        Long currTimestamp = System.currentTimeMillis();
-        Long targetTimestamp = 1702861379929L;
+        Long targetTimestamp = 1704239104236L;
 
         adminClient.alterConsumerGroupOffsets(consumerGroup, OffsetSpec.forTimestamp(targetTimestamp));
     }

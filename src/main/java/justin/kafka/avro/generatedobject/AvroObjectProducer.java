@@ -28,14 +28,20 @@ public class AvroObjectProducer {
 
         Producer<String, User> producer = new KafkaProducer<>(props);
 
+        sendTopic(producer, "Justin", "Red");
+        sendTopic(producer, "Kevin", "Blue");
+        sendTopic(producer, "Anna", "Purple");
+        producer.flush();
+        producer.close();
+    }
+
+    private static void sendTopic(Producer<String, User> producer, String name, String color) {
         User user = new User();
-        user.setName("Justin");
-        user.setFavoriteColor("Red");
+        user.setName(name);
+        user.setFavoriteColor(color);
         user.setFavoriteNumber(new Random().nextInt());
 
         ProducerRecord<String, User> record = new ProducerRecord<>(TOPIC_NAME, user.getName(), user);
         producer.send(record);
-        producer.flush();
-        producer.close();
     }
 }

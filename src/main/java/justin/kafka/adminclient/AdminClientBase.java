@@ -9,6 +9,11 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
+
+/**
+ * https://kafka.apache.org/35/javadoc/org/apache/kafka/clients/admin/package-summary.html
+ * https://kafka.apache.org/protocol.html#protocol_api_keys
+ */
 public class AdminClientBase {
     AdminClient admin;
 
@@ -31,9 +36,9 @@ public class AdminClientBase {
     public boolean existTopic(String topicName) throws ExecutionException, InterruptedException {
         ListTopicsResult topicsList = listTopics();
 
-        Optional<String> findTopicName = topicsList.names().get().stream().filter(x -> topicName.equals(x)).findAny();
+        Optional<String> foundTopicName = topicsList.names().get().stream().filter(topicName::equals).findAny();
 
-        return !findTopicName.isEmpty();
+        return foundTopicName.isPresent();
     }
 
     public CreateTopicsResult createTopic(String topicName, int numberPartitions, short repFactor) {
@@ -65,6 +70,7 @@ public class AdminClientBase {
         try {
             offsets = admin.listConsumerGroupOffsets(consumerGroup)
                     .partitionsToOffsetAndMetadata().get();
+
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
