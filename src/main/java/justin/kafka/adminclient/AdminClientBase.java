@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutionException;
 
 /**
  * https://kafka.apache.org/35/javadoc/org/apache/kafka/clients/admin/package-summary.html
+ * https://kafka.apache.org/35/javadoc/org/apache/kafka/clients/admin/AdminClient.html
  * https://kafka.apache.org/protocol.html#protocol_api_keys
  */
 public class AdminClientBase {
